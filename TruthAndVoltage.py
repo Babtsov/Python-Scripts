@@ -1,17 +1,12 @@
 import re
-import pprint
-
-OP = 'OP'       # operator
-VAR = 'VAR'     # variable
-L_PAR = "L_PAR" # left parenthesis
-R_PAR = "R_PAR" # right parenthesis
+import collections
 
 
 def tokenizer(raw_str):
     pos = 0
     while pos < len(raw_str):
         if re.match(r'[+*/]', raw_str[pos]):
-            yield (OP, raw_str[pos])
+            yield ("OP", raw_str[pos])
         elif re.match(r'\w', raw_str[pos]):
             variable = raw_str[pos]
             var_pos = pos + 1
@@ -19,19 +14,19 @@ def tokenizer(raw_str):
                 variable += raw_str[var_pos]
                 var_pos += 1
             pos = var_pos - 1
-            yield (VAR, variable)
+            yield ("VAR", variable)
         elif raw_str[pos] == ')':
-            yield (R_PAR, raw_str[pos])
+            yield (')', raw_str[pos])
         elif raw_str[pos] == '(':
-            yield (L_PAR, raw_str[pos])
+            yield ('(', raw_str[pos])
         else:
-            print("Error: invalid token detected: ",raw_str[pos])
+            print("Error: invalid character detected:", raw_str[pos])
             exit()
         pos += 1
 
 
 def populateVectors(variable_names):
-    dict = {}
+    dict = collections.OrderedDict()
     length = len(variable_names)
     for i in range(length):
         vect = []
@@ -57,9 +52,55 @@ def perform_operation(op, *args):
         raise RuntimeError
     return result
 
+
+def _cmpPrecedence(lhs,rhs):
+    precedence = {'+' : 0 , '*' : 1, '/': 2}
+    return precedence[lhs] - precedence[rhs]
+
+# TODO:: fix the shunting yard
+def to_RPN(tokens):
+    RPN_tokens = []
+    opStack =[]
+    for tokenType, tokenVal in tokens:
+        if tokenType == "VAR":
+            RPN_tokens.append((tokenType, tokenVal))
+        elif tokenType == "OP":
+            while len(opStack) > 0:
+                topType, topVal = opStack[-1]
+                if topType == '(' or topType == ')': break
+                if topVal != '/' and _cmpPrecedence(tokenVal,topVal) <= 0:
+                    RPN_tokens.append((topType,topVal))
+                    opStack.pop()
+                else: break
+            opStack.append((tokenType, tokenVal))
+        elif tokenType == '(':
+            RPN_tokens.append((tokenType, tokenVal))
+        elif tokenType == ')':
+            while len(opStack) > 0:
+                topType, topVal = opStack[-1]
+                if tokenType == '(': break
+                RPN_tokens.append((topType,topVal))
+                opStack.pop()
+            try:
+                topType, topVal = opStack[-1]
+                if topType == '(': raise RuntimeError
+            except:
+                print("mismatch in parenthesis1")
+                exit()
+            opStack.pop()
+    while len(opStack) > 0:
+        topType, topVal = opStack[-1]
+        if topType == ')' or topType == '(':
+            print("mismatch in parenthesis2")
+            exit()
+        RPN_tokens.append((topType, topVal))
+        opStack.pop()
+    return RPN_tokens
+
+
 tokens = [token for token in tokenizer(input("> "))]
-variable_names = {token[1] for token in tokens if token[0] == VAR}
-variable_vectors = populateVectors(list(variable_names))
+seen = set()
+variable_names = [x for x in tokens if not (x in seen or seen.add(x) or x[0] != 'VAR')]
+variable_vectors = populateVectors(variable_names)
 print(tokens)
-print(variable_names)
-pprint.pprint(variable_vectors)
+print(to_RPN(tokens))
