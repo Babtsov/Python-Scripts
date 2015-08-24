@@ -1,8 +1,7 @@
-import re
-import collections
+import re, collections
 
 
-def tokenizer(raw_str):
+def tokenizer(raw_str): # break raw (user) input to meaningful chunks
     pos = 0
     while pos < len(raw_str):
         if re.match(r'[+*/]', raw_str[pos]):
@@ -25,7 +24,7 @@ def tokenizer(raw_str):
         pos += 1
 
 
-def populateVectors(vect_tokens):
+def populateVectors(vect_tokens): # populate the variables with all T/F combinations
     dict = collections.OrderedDict()
     length = len(vect_tokens)
     for i in range(length):
@@ -42,7 +41,7 @@ def _cmp_prc(lhs,rhs): # compare precedence
     return precedence[lhs] - precedence[rhs]
 
 
-def to_RPN(tokens):
+def to_RPN(tokens): # convert using Shunting Yard algorithm to Reverse Polish notation
     RPN_tokens = []
     opStack =[]
     for tokenType, tokenVal in tokens:
@@ -79,7 +78,7 @@ def to_RPN(tokens):
     return RPN_tokens
 
 
-def _perform_op(op, *args):
+def _perform_op(op, *args): # execute the operation on each element of the vector
     if len(args) == 2: # binary operation
         vect1, vect2 = args
         assert len(vect1) == len(vect2)
@@ -93,7 +92,7 @@ def _perform_op(op, *args):
     else: raise RuntimeError # invalid operation
 
 
-def compute_tt(RPN_tokens,dict): # compute truth table
+def compute_tt(RPN_tokens,dict): # compute truth table result vector
     calc_stack = []
     for tokenType,tokenVal in RPN_tokens:
         if tokenType == 'OP':
@@ -124,14 +123,22 @@ def compute_tt(RPN_tokens,dict): # compute truth table
     return calc_stack[-1]
 
 
-def print_table(dict,result):
+def compute_vt(RPN_tokens,dict): # compute voltage table result vector
+    vtDict = dict.copy() # voltage-table dict will have all active low negated
+    for var_name, vect in dict.items(): # negate all the active low vectors
+        if re.match(r'(.*)_L',var_name):
+            vtDict[var_name] = _perform_op(lambda x: not x,vect)
+    return compute_tt(RPN_tokens,vtDict)
+
+
+def print_table(dict,result,t_val,f_val):
     for var_name in dict.keys():
-        print(var_name,end='\t')
-    else: print("Ans")
+        print(var_name,end='\t\t')
+    else: print()
     for index in range(2**len(dict)):
         for vect in dict.values():
-            print(1 if vect[index] else 0,end='\t')
-        else: print(1 if result[index] else 0)
+            print(t_val if vect[index] else f_val, end='\t\t')
+        else: print(t_val if result[index] else f_val)
 
 
 def main():
@@ -140,8 +147,13 @@ def main():
     variable_names = [x for x in tokens if not (x in seen or seen.add(x) or x[0] != 'VAR')]
     dict = populateVectors(variable_names)
     RPN_tokens = to_RPN(tokens)
-    result = compute_tt(RPN_tokens,dict)
-    print_table(dict,result)
+    print("Truth Table:")
+    tt_result = compute_tt(RPN_tokens,dict) # result vector for truth table
+    print_table(dict,tt_result,'1','0')
+    print()
+    print("Voltage Table:")
+    vt_result = compute_vt(RPN_tokens,dict) # result vector for truth table
+    print_table(dict,vt_result,'H','L')
 
-
-main()
+if __name__ == "__main__":
+    main()
