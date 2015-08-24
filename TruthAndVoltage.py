@@ -53,11 +53,10 @@ def perform_operation(op, *args):
     return result
 
 
-def _cmpPrecedence(lhs,rhs):
+def _cmp_prc(lhs,rhs): # compare precedence
     precedence = {'+' : 0 , '*' : 1, '/': 2}
     return precedence[lhs] - precedence[rhs]
 
-# TODO:: fix the shunting yard
 def to_RPN(tokens):
     RPN_tokens = []
     opStack =[]
@@ -65,36 +64,33 @@ def to_RPN(tokens):
         if tokenType == "VAR":
             RPN_tokens.append((tokenType, tokenVal))
         elif tokenType == "OP":
-            while len(opStack) > 0:
+            while len(opStack):
                 topType, topVal = opStack[-1]
                 if topType == '(' or topType == ')': break
-                if topVal != '/' and _cmpPrecedence(tokenVal,topVal) <= 0:
-                    RPN_tokens.append((topType,topVal))
-                    opStack.pop()
+                if tokenVal != '/' and _cmp_prc(tokenVal,topVal) <= 0:
+                    RPN_tokens.append(opStack.pop())
                 else: break
             opStack.append((tokenType, tokenVal))
         elif tokenType == '(':
-            RPN_tokens.append((tokenType, tokenVal))
+            opStack.append((tokenType, tokenVal))
         elif tokenType == ')':
-            while len(opStack) > 0:
+            while len(opStack):
                 topType, topVal = opStack[-1]
-                if tokenType == '(': break
-                RPN_tokens.append((topType,topVal))
-                opStack.pop()
+                if topType == '(': break
+                RPN_tokens.append(opStack.pop())
             try:
                 topType, topVal = opStack[-1]
-                if topType == '(': raise RuntimeError
-            except:
-                print("mismatch in parenthesis1")
+                if topType != '(': raise RuntimeError
+            except RuntimeError:
+                print("Error: mismatch(1) in parenthesis.")
                 exit()
             opStack.pop()
     while len(opStack) > 0:
         topType, topVal = opStack[-1]
         if topType == ')' or topType == '(':
-            print("mismatch in parenthesis2")
+            print("Error: mismatch(2) in parenthesis.")
             exit()
-        RPN_tokens.append((topType, topVal))
-        opStack.pop()
+        RPN_tokens.append(opStack.pop())
     return RPN_tokens
 
 
@@ -102,5 +98,7 @@ tokens = [token for token in tokenizer(input("> "))]
 seen = set()
 variable_names = [x for x in tokens if not (x in seen or seen.add(x) or x[0] != 'VAR')]
 variable_vectors = populateVectors(variable_names)
-print(tokens)
-print(to_RPN(tokens))
+
+for token in to_RPN(tokens):
+    print(token[1], end=' ')
+print()
